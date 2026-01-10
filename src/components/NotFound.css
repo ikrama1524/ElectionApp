@@ -1,0 +1,27 @@
+.not-found {
+  text-align: center;
+  padding: 4rem 2rem;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.not-found-icon {
+  font-size: 6rem;
+  font-weight: 700;
+  color: #667eea;
+  margin-bottom: 1rem;
+  line-height: 1;
+}
+
+.not-found h1 {
+  margin-bottom: 0.5rem;
+}
+
+.not-found-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 2rem;
+  flex-wrap: wrap;
+}
+

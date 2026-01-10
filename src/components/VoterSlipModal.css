@@ -1,0 +1,197 @@
+.voter-slip-container {
+  padding: 0;
+}
+
+.voter-slip-print {
+  border: 2px solid #000;
+  padding: 25px;
+  max-width: 700px;
+  margin: 0 auto;
+  background: #fff;
+  color: #000;
+  box-sizing: border-box;
+  page-break-inside: avoid;
+}
+
+.voter-slip-header {
+  text-align: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 3px solid #000;
+}
+
+.voter-slip-header h1 {
+  font-size: 26px;
+  font-weight: bold;
+  margin: 0 0 8px 0;
+  color: #000;
+}
+
+.voter-slip-header h2 {
+  font-size: 18px;
+  font-weight: normal;
+  margin: 0;
+  color: #333;
+}
+
+.voter-slip-section {
+  margin: 15px 0;
+}
+
+.voter-slip-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+  margin: 15px 0;
+  align-items: start;
+}
+
+.voter-slip-label {
+  font-weight: bold;
+  font-size: 13px;
+  margin-bottom: 6px;
+  color: #333;
+}
+
+.voter-slip-value {
+  font-size: 17px;
+  color: #000;
+  padding: 6px 0;
+}
+
+.voter-slip-name-section {
+  margin: 18px 0;
+  padding: 15px;
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.voter-slip-name-marathi {
+  font-size: 20px;
+  font-weight: bold;
+  color: #000;
+  margin-top: 8px;
+  font-family: inherit;
+}
+
+.voter-slip-name-english {
+  font-size: 16px;
+  color: #333;
+  margin-top: 6px;
+  font-family: inherit;
+}
+
+.voter-slip-epic-section {
+  margin: 18px 0;
+  padding: 15px;
+  background: #fff;
+  border: 3px solid #000;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.voter-slip-epic-value {
+  font-size: 22px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  color: #000;
+  margin-top: 8px;
+  font-family: 'Courier New', monospace;
+}
+
+.voter-slip-address-section {
+  margin: 18px 0;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: #fafafa;
+}
+
+.voter-slip-address-value {
+  font-size: 15px;
+  line-height: 1.6;
+  color: #000;
+  margin-top: 8px;
+  font-family: inherit;
+}
+
+.voter-slip-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #ddd;
+}
+
+.voter-slip-actions .btn {
+  min-width: 120px;
+}
+
+/* Print Styles */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  
+  .voter-slip-print,
+  .voter-slip-print * {
+    visibility: visible;
+  }
+  
+  .voter-slip-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-width: 100%;
+    border: 2px solid #000;
+    padding: 20px;
+    margin: 0;
+    background: white;
+    box-sizing: border-box;
+    page-break-inside: avoid;
+  }
+  
+  .voter-slip-actions {
+    display: none;
+  }
+  
+  .voter-slip-container {
+    padding: 0;
+  }
+  
+  @page {
+    size: A4;
+    margin: 15mm;
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .voter-slip-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .voter-slip-print {
+    padding: 20px;
+  }
+  
+  .voter-slip-header h1 {
+    font-size: 24px;
+  }
+  
+  .voter-slip-header h2 {
+    font-size: 18px;
+  }
+  
+  .voter-slip-actions {
+    flex-direction: column;
+  }
+  
+  .voter-slip-actions .btn {
+    width: 100%;
+  }
+}
+
