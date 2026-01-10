@@ -4,6 +4,23 @@ import { searchApi } from '../../api/searchApi';
 import VoterSlipModal from '../../components/VoterSlipModal';
 import './Search.css';
 
+// Hook to detect screen size
+const useMediaQuery = (query) => {
+  const [matches, setMatches] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    if (media.matches !== matches) {
+      setMatches(media.matches);
+    }
+    const listener = () => setMatches(media.matches);
+    media.addEventListener('change', listener);
+    return () => media.removeEventListener('change', listener);
+  }, [matches, query]);
+
+  return matches;
+};
+
 // Helper function to safely join name parts
 const joinName = (...parts) => {
   return parts.filter(Boolean).join(' ').trim();
@@ -30,6 +47,7 @@ const formatVoterName = (voter) => {
 
 const Search = () => {
   const { user } = useAuth();
+  const isMobile = useMediaQuery('(max-width: 1023px)');
   const [searchMode, setSearchMode] = useState('epic'); // 'epic' or 'name'
   const [epicId, setEpicId] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -304,68 +322,138 @@ const Search = () => {
         {results && results.length > 0 && (
           <div className="search-results" style={{ marginTop: '2rem' }}>
             <h3 style={{ marginBottom: '1rem' }}>Search Results</h3>
-            <div className="table-container">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>EPIC No</th>
-                    <th>Voter Name</th>
-                    <th>Ward / Prabhag</th>
-                    <th>Booth / Yadibhag</th>
-                    <th>SR No</th>
-                    <th>Booth Address</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {results.map((voter, index) => {
-                    const name = formatVoterName(voter);
-                    return (
-                      <tr key={index}>
-                        <td>
-                          <code>{voter.vcardid || '-'}</code>
-                        </td>
-                        <td>
-                          <div style={{ lineHeight: '1.4' }}>
+            {isMobile ? (
+              /* Mobile Card Layout */
+              <div className="search-results-mobile">
+                {results.map((voter, index) => {
+                  const name = formatVoterName(voter);
+                  return (
+                    <div key={index} className="voter-card">
+                      <div className="voter-card-header">
+                        <div className="voter-card-epic">
+                          <span className="voter-card-label">EPIC No:</span>
+                          <code className="voter-card-epic-value">{voter.vcardid || '-'}</code>
+                        </div>
+                      </div>
+                      
+                      <div className="voter-card-body">
+                        <div className="voter-card-field">
+                          <span className="voter-card-label">Voter Name:</span>
+                          <div className="voter-card-name">
                             {name.marathi !== '-' && (
-                              <div style={{ fontWeight: 500, fontFamily: 'inherit' }}>
-                                {name.marathi}
-                              </div>
+                              <div className="voter-card-name-marathi">{name.marathi}</div>
                             )}
                             {name.english !== '-' && (
-                              <div style={{ fontSize: '0.85em', color: '#666', fontFamily: 'inherit' }}>
-                                {name.english}
-                              </div>
+                              <div className="voter-card-name-english">{name.english}</div>
                             )}
                             {name.marathi === '-' && name.english === '-' && (
                               <span>-</span>
                             )}
                           </div>
-                        </td>
-                        <td>{voter.prabhag || '-'}</td>
-                        <td>{voter.yadibhag || '-'}</td>
-                        <td>{voter.srno || '-'}</td>
-                        <td style={{ fontFamily: 'inherit', maxWidth: '300px' }}>
-                          {voter.lBoothaddress || '-'}
-                        </td>
-                        <td>
-                          <button
-                            onClick={() => {
-                              setSelectedVoter(voter);
-                              setShowVoterSlip(true);
-                            }}
-                            className="btn btn-secondary btn-sm"
-                            title="View Voter Slip"
-                          >
-                            View
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                        </div>
+
+                        <div className="voter-card-row">
+                          <div className="voter-card-field">
+                            <span className="voter-card-label">Ward / Prabhag:</span>
+                            <span className="voter-card-value">{voter.prabhag || '-'}</span>
+                          </div>
+                          <div className="voter-card-field">
+                            <span className="voter-card-label">Booth / Yadibhag:</span>
+                            <span className="voter-card-value">{voter.yadibhag || '-'}</span>
+                          </div>
+                        </div>
+
+                        <div className="voter-card-field">
+                          <span className="voter-card-label">SR No:</span>
+                          <span className="voter-card-value">{voter.srno || '-'}</span>
+                        </div>
+
+                        <div className="voter-card-field">
+                          <span className="voter-card-label">Booth Address:</span>
+                          <div className="voter-card-address">{voter.lBoothaddress || '-'}</div>
+                        </div>
+                      </div>
+
+                      <div className="voter-card-footer">
+                        <button
+                          onClick={() => {
+                            setSelectedVoter(voter);
+                            setShowVoterSlip(true);
+                          }}
+                          className="btn btn-primary voter-card-button"
+                        >
+                          View Voter Slip
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              /* Desktop Table Layout */
+              <div className="table-container">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>EPIC No</th>
+                      <th>Voter Name</th>
+                      <th>Ward / Prabhag</th>
+                      <th>Booth / Yadibhag</th>
+                      <th>SR No</th>
+                      <th>Booth Address</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {results.map((voter, index) => {
+                      const name = formatVoterName(voter);
+                      return (
+                        <tr key={index}>
+                          <td>
+                            <code>{voter.vcardid || '-'}</code>
+                          </td>
+                          <td>
+                            <div style={{ lineHeight: '1.4' }}>
+                              {name.marathi !== '-' && (
+                                <div style={{ fontWeight: 500, fontFamily: 'inherit' }}>
+                                  {name.marathi}
+                                </div>
+                              )}
+                              {name.english !== '-' && (
+                                <div style={{ fontSize: '0.85em', color: '#666', fontFamily: 'inherit' }}>
+                                  {name.english}
+                                </div>
+                              )}
+                              {name.marathi === '-' && name.english === '-' && (
+                                <span>-</span>
+                              )}
+                            </div>
+                          </td>
+                          <td>{voter.prabhag || '-'}</td>
+                          <td>{voter.yadibhag || '-'}</td>
+                          <td>{voter.srno || '-'}</td>
+                          <td style={{ fontFamily: 'inherit', maxWidth: '300px' }}>
+                            {voter.lBoothaddress || '-'}
+                          </td>
+                          <td>
+                            <button
+                              onClick={() => {
+                                setSelectedVoter(voter);
+                                setShowVoterSlip(true);
+                              }}
+                              className="btn btn-secondary btn-sm"
+                              title="View Voter Slip"
+                            >
+                              View
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 
