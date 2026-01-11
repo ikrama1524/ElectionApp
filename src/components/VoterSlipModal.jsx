@@ -7,6 +7,43 @@ const joinName = (...parts) => {
   return parts.filter(Boolean).join(' ').trim();
 };
 
+/**
+ * Detect if running inside Android WebView / Mobile APK
+ * 
+ * WebView context detection is necessary because:
+ * - Android WebView does NOT support <a download> attribute reliably
+ * - Programmatic link.click() may be blocked
+ * - Blob URLs need explicit native bridge handling
+ * 
+ * Detection methods:
+ * 1. User agent string contains "wv" (WebView identifier)
+ * 2. window.Android exists (custom Android bridge)
+ * 3. window.ReactNativeWebView exists (React Native WebView bridge)
+ * 4. window.Capacitor exists (Capacitor framework)
+ */
+const isWebViewContext = () => {
+  const userAgent = navigator.userAgent || '';
+  const isAndroidWebView = /Android.*wv|wv.*Android/i.test(userAgent);
+  const hasAndroidBridge = typeof window.Android !== 'undefined';
+  const hasReactNativeBridge = typeof window.ReactNativeWebView !== 'undefined';
+  const hasCapacitor = typeof window.Capacitor !== 'undefined';
+  
+  return isAndroidWebView || hasAndroidBridge || hasReactNativeBridge || hasCapacitor;
+};
+
+// Helper to convert blob to base64
+const blobToBase64 = (blob) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = reader.result.split(',')[1]; // Remove data:image/jpeg;base64, prefix
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+};
+
 const VoterSlipModal = ({ isOpen, onClose, voter }) => {
   const printRef = useRef(null);
   const [showFullAddress, setShowFullAddress] = useState(false);
@@ -57,7 +94,23 @@ const VoterSlipModal = ({ isOpen, onClose, voter }) => {
         height: slipContent.offsetHeight,
       });
 
-      // Convert canvas to data URL
+      // Check if running in WebView/APK context
+      if (isWebViewContext()) {
+        // WebView: MUST use native Android print - NEVER use window.open() or window.print()
+        if (typeof window.Android !== 'undefined' && window.Android.printSlip) {
+          const base64 = canvas.toDataURL('image/png', 1.0).split(',')[1]; // Remove data:image/png;base64, prefix
+          const filename = `voter-slip-${voter.vcardid || 'voter'}-${Date.now()}.png`;
+          window.Android.printSlip(base64, filename);
+          return;
+        } else {
+          // Native bridge not available - show error instead of opening window
+          console.error('Print not available: Android bridge not found');
+          alert('Print is not available in this app. Please use the download option.');
+          return;
+        }
+      }
+
+      // Desktop browser: Use standard print window approach
       const imageDataUrl = canvas.toDataURL('image/png', 1.0);
 
       // Open print window with image
@@ -205,23 +258,105 @@ const VoterSlipModal = ({ isOpen, onClose, voter }) => {
         height: slipContent.offsetHeight,
       });
 
-      // Convert canvas to blob
-      canvas.toBlob((blob) => {
-        if (!blob) return;
-        
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `voter-slip-${voter.vcardid || 'voter'}-${Date.now()}.${format}`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-      }, format === 'jpg' ? 'image/jpeg' : 'image/png', 0.95);
+      const filename = `voter-slip-${voter.vcardid || 'voter'}-${Date.now()}.${format}`;
+      const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png';
+
+      // Check if running in WebView / APK context
+      if (isWebViewContext()) {
+        // WebView/APK: Use native bridge or fallback
+        await downloadSlipInWebView(canvas, filename, mimeType);
+      } else {
+        // Desktop browser: Use standard download approach
+        canvas.toBlob((blob) => {
+          if (!blob) return;
+          
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        }, mimeType, 0.95);
+      }
     } catch (error) {
       console.error('Error generating image:', error);
       // Fallback to print if image generation fails
       handlePrint();
+    }
+  };
+
+  /**
+   * Download helper for WebView/APK context
+   * 
+   * Android WebView limitations:
+   * - <a download> attribute is not supported
+   * - Programmatic link.click() may be blocked
+   * - Blob URLs require native bridge for file saving
+   * 
+   * Strategy:
+   * 1. Try Android native bridge (window.Android.saveImage)
+   * 2. Try React Native WebView bridge (postMessage)
+   * 3. Try Capacitor Filesystem API
+   * 4. Fallback: Open image in new tab for manual long-press save
+   */
+  const downloadSlipInWebView = async (canvas, filename, mimeType) => {
+    try {
+      // Convert canvas to blob first
+      const blob = await new Promise((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error('Failed to create blob'));
+        }, mimeType, 0.95);
+      });
+
+      // Try Android native bridge first
+      if (typeof window.Android !== 'undefined' && window.Android.saveImage) {
+        const base64 = await blobToBase64(blob);
+        window.Android.saveImage(base64, filename);
+        return;
+      }
+
+      // Try React Native WebView bridge
+      if (typeof window.ReactNativeWebView !== 'undefined') {
+        const base64 = await blobToBase64(blob);
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: 'DOWNLOAD_IMAGE',
+          data: base64,
+          filename: filename,
+          mimeType: mimeType
+        }));
+        return;
+      }
+
+      // Try Capacitor Filesystem API
+      if (typeof window.Capacitor !== 'undefined' && window.Capacitor.Plugins?.Filesystem) {
+        const base64 = await blobToBase64(blob);
+        const { Filesystem } = window.Capacitor.Plugins;
+        await Filesystem.writeFile({
+          path: filename,
+          data: base64,
+          directory: Filesystem.Directory.Documents
+        });
+        // Show success message if Capacitor.Dialog is available
+        if (window.Capacitor.Plugins?.Dialog) {
+          window.Capacitor.Plugins.Dialog.alert({
+            title: 'Download Complete',
+            message: `File saved: ${filename}`
+          });
+        }
+        return;
+      }
+
+      // Fallback: Show error message instead of opening window
+      // DO NOT use window.open() in WebView - it causes navigation issues
+      console.error('Download failed: Native bridge not available');
+      alert('Download is not available. Please check app permissions.');
+    } catch (error) {
+      console.error('Error downloading in WebView:', error);
+      // DO NOT open window - show error instead
+      alert('Download failed: ' + error.message);
     }
   };
 
