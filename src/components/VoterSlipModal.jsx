@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import Modal from './Modal';
 import './VoterSlipModal.css';
 
@@ -9,11 +9,29 @@ const joinName = (...parts) => {
 
 const VoterSlipModal = ({ isOpen, onClose, voter }) => {
   const printRef = useRef(null);
+  const [showFullAddress, setShowFullAddress] = useState(false);
+
+  // Reset state when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setShowFullAddress(false);
+    }
+  }, [isOpen]);
 
   if (!voter) return null;
 
   const marathiName = joinName(voter.lFirstName, voter.lMiddleName, voter.lLastName) || voter.lVoterName || '-';
   const englishName = joinName(voter.eFirstName, voter.eMiddleName, voter.eLastName) || '-';
+
+  // Truncate address (2 lines max, ~80 chars)
+  const truncateAddress = (address, maxLength = 80) => {
+    if (!address || address === '-') return '-';
+    if (address.length <= maxLength) return address;
+    return address.substring(0, maxLength) + '...';
+  };
+
+  const addressText = showFullAddress ? (voter.lBoothaddress || '-') : truncateAddress(voter.lBoothaddress);
+  const shouldShowExpandBtn = voter.lBoothaddress && voter.lBoothaddress.length > 80;
 
   const handlePrint = async () => {
     const slipContent = printRef.current;
@@ -210,77 +228,117 @@ const VoterSlipModal = ({ isOpen, onClose, voter }) => {
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="large" title={null}>
       <div className="voter-slip-container">
+        {/* Unified Layout - Same for Web and Mobile, CSS handles responsive differences */}
         <div ref={printRef} className="voter-slip-print" id="voter-slip-content">
-          {/* Header */}
+          {/* Header: Bilingual title */}
           <div className="voter-slip-header">
             <h1>पुणे महानगरपालिका</h1>
             <h2>Pune Municipal Corporation</h2>
           </div>
 
-          {/* First Row: Ward / Prabhag and Booth / Yadibhag */}
-          <div className="voter-slip-row">
-            <div className="voter-slip-section">
-              <div className="voter-slip-label">Ward / Prabhag</div>
-              <div className="voter-slip-value">{voter.prabhag || '-'}</div>
-            </div>
-            <div className="voter-slip-section">
-              <div className="voter-slip-label">Booth / Yadibhag</div>
-              <div className="voter-slip-value">{voter.yadibhag || '-'}</div>
-            </div>
+          {/* Divider */}
+          <div className="voter-slip-divider"></div>
+
+          {/* Voter Name: Combined Marathi + English in single compact section */}
+          <div className="voter-slip-name-compact">
+            <div className="voter-slip-name-marathi-compact">{marathiName}</div>
+            {englishName !== '-' && (
+              <div className="voter-slip-name-english-compact">{englishName}</div>
+            )}
           </div>
 
-          {/* Second Row: Voter Number */}
-          <div className="voter-slip-section">
-            <div className="voter-slip-label">Voter Number (SR No)</div>
-            <div className="voter-slip-value">{voter.srno || '-'}</div>
+          {/* Divider */}
+          <div className="voter-slip-divider"></div>
+
+          {/* EPIC Number: Label and value in ONE ROW */}
+          <div className="voter-slip-epic-row">
+            <span className="voter-slip-epic-label-row">EPIC No:</span>
+            <span className="voter-slip-epic-value-row">{voter.vcardid || '-'}</span>
           </div>
 
-          {/* Voter Name - Marathi */}
-          <div className="voter-slip-name-section">
-            <div className="voter-slip-label">Voter Name (Marathi)</div>
-            <div className="voter-slip-name-marathi">{marathiName}</div>
+          {/* Divider */}
+          <div className="voter-slip-divider"></div>
+
+          {/* All Booth/Prabhag/Yadibhag/SR No in SINGLE ROW (grid, wraps on small screens) */}
+          <div className="voter-slip-info-grid">
+            {voter.boothNo && (
+              <div className="voter-slip-info-item">
+                <span className="voter-slip-info-label">Booth:</span>
+                <span className="voter-slip-info-value">{voter.boothNo}</span>
+              </div>
+            )}
+            {voter.prabhag && (
+              <div className="voter-slip-info-item">
+                <span className="voter-slip-info-label">Prabhag:</span>
+                <span className="voter-slip-info-value">{voter.prabhag}</span>
+              </div>
+            )}
+            {voter.yadibhag && (
+              <div className="voter-slip-info-item">
+                <span className="voter-slip-info-label">Yadibhag:</span>
+                <span className="voter-slip-info-value">{voter.yadibhag}</span>
+              </div>
+            )}
+            {voter.srno && (
+              <div className="voter-slip-info-item">
+                <span className="voter-slip-info-label">SR No:</span>
+                <span className="voter-slip-info-value">{voter.srno}</span>
+              </div>
+            )}
           </div>
 
-          {/* Voter Name - English */}
-          <div className="voter-slip-name-section">
-            <div className="voter-slip-label">Voter Name (English)</div>
-            <div className="voter-slip-name-english">{englishName}</div>
-          </div>
+          {/* Divider */}
+          <div className="voter-slip-divider"></div>
 
-          {/* EPIC Number */}
-          <div className="voter-slip-epic-section">
-            <div className="voter-slip-label">EPIC Number</div>
-            <div className="voter-slip-epic-value">{voter.vcardid || '-'}</div>
+          {/* Polling Booth Address: Label + value with expand/collapse */}
+          <div className="voter-slip-address-compact">
+            <div className="voter-slip-address-label-compact">Polling Booth Address</div>
+            <div className="voter-slip-address-value-compact">{addressText}</div>
+            {shouldShowExpandBtn && (
+              <button
+                onClick={() => setShowFullAddress(!showFullAddress)}
+                className="voter-slip-expand-btn-compact"
+                type="button"
+              >
+                {showFullAddress ? 'Show less' : 'Show full address'}
+              </button>
+            )}
           </div>
-
-          {/* Booth Address */}
-          <div className="voter-slip-address-section">
-            <div className="voter-slip-label">Polling Booth Address</div>
-            <div className="voter-slip-address-value">{voter.lBoothaddress || '-'}</div>
-          </div>
-
-          {/* Booth Number */}
-          {voter.boothNo && (
-            <div className="voter-slip-section">
-              <div className="voter-slip-label">Booth Number</div>
-              <div className="voter-slip-value">{voter.boothNo}</div>
-            </div>
-          )}
         </div>
 
-        {/* Action Buttons */}
+        {/* Action Buttons: Icon-only horizontal bar, minimal height */}
         <div className="voter-slip-actions">
-          <button onClick={handlePrint} className="btn btn-primary">
-            🖨️ Print
+          <button 
+            onClick={handlePrint} 
+            className="voter-slip-action-icon"
+            title="Print"
+            aria-label="Print voter slip"
+          >
+            🖨
           </button>
-          <button onClick={() => handleDownloadImage('png')} className="btn btn-secondary">
-            📥 Download PNG
+          <button 
+            onClick={() => handleDownloadImage('png')} 
+            className="voter-slip-action-icon"
+            title="Download PNG"
+            aria-label="Download as PNG"
+          >
+            🖼
           </button>
-          <button onClick={() => handleDownloadImage('jpg')} className="btn btn-secondary">
-            📥 Download JPG
+          <button 
+            onClick={() => handleDownloadImage('jpg')} 
+            className="voter-slip-action-icon voter-slip-download-jpg"
+            title="Download JPG"
+            aria-label="Download as JPG"
+          >
+            📷
           </button>
-          <button onClick={onClose} className="btn btn-secondary">
-            ✕ Close
+          <button 
+            onClick={onClose} 
+            className="voter-slip-action-icon"
+            title="Close"
+            aria-label="Close"
+          >
+            ✕
           </button>
         </div>
       </div>
@@ -289,4 +347,3 @@ const VoterSlipModal = ({ isOpen, onClose, voter }) => {
 };
 
 export default VoterSlipModal;
-
